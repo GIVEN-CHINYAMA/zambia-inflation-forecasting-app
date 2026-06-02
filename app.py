@@ -25,16 +25,11 @@ st.set_page_config(
 # ─── Custom CSS ─────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-    /* Main background */
     .stApp { background-color: #0f1117; }
-
-    /* Sidebar */
     [data-testid="stSidebar"] {
         background: linear-gradient(180deg, #1a1d2e 0%, #16213e 100%);
         border-right: 1px solid #2d3561;
     }
-
-    /* Metric cards */
     [data-testid="metric-container"] {
         background: linear-gradient(135deg, #1e2140 0%, #252a4a 100%);
         border: 1px solid #3d4270;
@@ -44,71 +39,42 @@ st.markdown("""
     [data-testid="stMetricValue"] { color: #7eb8f7 !important; font-size: 1.6rem !important; }
     [data-testid="stMetricLabel"] { color: #8892b0 !important; }
     [data-testid="stMetricDelta"] { font-size: 0.85rem !important; }
-
-    /* Headers */
     h1 { color: #ccd6f6 !important; }
     h2, h3 { color: #a8b2d8 !important; }
-
-    /* Info/success/warning boxes */
     .stAlert { border-radius: 10px; }
-
-    /* Tab styling */
     .stTabs [data-baseweb="tab-list"] {
-        background: #1a1d2e;
-        border-radius: 10px;
-        padding: 4px;
-        gap: 4px;
+        background: #1a1d2e; border-radius: 10px; padding: 4px; gap: 4px;
     }
     .stTabs [data-baseweb="tab"] {
-        background: transparent;
-        border-radius: 8px;
-        color: #8892b0;
-        font-weight: 500;
+        background: transparent; border-radius: 8px; color: #8892b0; font-weight: 500;
     }
     .stTabs [aria-selected="true"] {
         background: linear-gradient(135deg, #2d3561 0%, #3d4a8a 100%) !important;
         color: #ccd6f6 !important;
     }
-
-    /* Divider */
     hr { border-color: #2d3561; }
-
-    /* Badge */
     .badge {
-        display: inline-block;
-        padding: 3px 10px;
-        border-radius: 20px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        margin: 2px;
+        display: inline-block; padding: 3px 10px; border-radius: 20px;
+        font-size: 0.75rem; font-weight: 600; margin: 2px;
     }
     .badge-green  { background: #1a3a2a; color: #64ffda; border: 1px solid #64ffda44; }
     .badge-blue   { background: #1a2a3a; color: #7eb8f7; border: 1px solid #7eb8f744; }
     .badge-purple { background: #2a1a3a; color: #c792ea; border: 1px solid #c792ea44; }
     .badge-orange { background: #3a2a1a; color: #ffcb6b; border: 1px solid #ffcb6b44; }
-
-    /* Section card */
-    .section-card {
-        background: linear-gradient(135deg, #1e2140 0%, #1a1d2e 100%);
-        border: 1px solid #2d3561;
-        border-radius: 14px;
-        padding: 20px 24px;
-        margin-bottom: 16px;
-    }
 </style>
 """, unsafe_allow_html=True)
 
 # ─── Colour palette ─────────────────────────────────────────────────────────
 COLORS = {
-    "ARIMAX":   "#64ffda",
-    "XGBoost":  "#7eb8f7",
-    "Prophet":  "#c792ea",
-    "LSTM":     "#ffcb6b",
-    "actual":   "#f78c6c",
-    "history":  "#4a5568",
-    "grid":     "rgba(100,100,140,0.15)",
-    "bg":       "rgba(0,0,0,0)",
-    "paper":    "#1a1d2e",
+    "ARIMAX":  "#64ffda",
+    "XGBoost": "#7eb8f7",
+    "Prophet": "#c792ea",
+    "LSTM":    "#ffcb6b",
+    "actual":  "#f78c6c",
+    "history": "#4a5568",
+    "grid":    "rgba(100,100,140,0.15)",
+    "bg":      "rgba(0,0,0,0)",
+    "paper":   "#1a1d2e",
 }
 
 PLOTLY_LAYOUT = dict(
@@ -132,25 +98,25 @@ def load_data():
     import wbgapi as wb
     import yfinance as yf
 
-    # Inflation
+    # --- Inflation ---
     infl_raw = wb.data.DataFrame("FP.CPI.TOTL.ZG", "ZMB", mrv=40)
-    infl = infl_raw.T
-    infl.index = pd.to_datetime(
-        [str(y) for y in infl.index.str.replace("YR", "")], format="%Y"
+    infl = infl_raw.T.reset_index()
+    infl.columns = ["Year", "Inflation"]
+    infl["Year"] = pd.to_datetime(
+        infl["Year"].astype(str).str.replace("YR", ""), format="%Y"
     )
-    infl.columns = ["Inflation"]
-    infl = infl.sort_index()
+    infl = infl.set_index("Year").sort_index()
 
-    # Exchange rate
+    # --- Exchange rate ---
     fx_raw = wb.data.DataFrame("PA.NUS.FCRF", "ZMB", mrv=40)
-    fx = fx_raw.T
-    fx.index = pd.to_datetime(
-        [str(y) for y in fx.index.str.replace("YR", "")], format="%Y"
+    fx = fx_raw.T.reset_index()
+    fx.columns = ["Year", "USDZMW"]
+    fx["Year"] = pd.to_datetime(
+        fx["Year"].astype(str).str.replace("YR", ""), format="%Y"
     )
-    fx.columns = ["USDZMW"]
-    fx = fx.sort_index()
+    fx = fx.set_index("Year").sort_index()
 
-    # Copper
+    # --- Copper ---
     copper = yf.download("HG=F", start="1990-01-01", interval="1mo", auto_adjust=True)["Close"]
     copper = copper.resample("YE").mean()
     copper.index = copper.index.to_period("Y").to_timestamp()
@@ -159,6 +125,10 @@ def load_data():
     df = infl.join(fx, how="inner").join(copper, how="inner")
     df.dropna(inplace=True)
     df.index.name = "Year"
+
+    if df.empty:
+        raise ValueError("Dataset is empty after merging. World Bank API may be unavailable.")
+
     return df
 
 
@@ -267,75 +237,9 @@ def run_prophet(df):
                 rmse=rmse, mae=mae, mape=mape)
 
 
-@st.cache_data(show_spinner="🧠 Training LSTM network…")
-def run_lstm(df):
-    import tensorflow as tf
-    from tensorflow.keras.models import Sequential
-    from tensorflow.keras.layers import LSTM, Dense, Dropout
-    from tensorflow.keras.callbacks import EarlyStopping
-    from sklearn.preprocessing import MinMaxScaler
-    from sklearn.metrics import mean_squared_error, mean_absolute_error
-
-    tf.random.set_seed(42)
-    np.random.seed(42)
-
-    d = df.copy()
-    d["USDZMW_diff"] = d["USDZMW"].diff()
-    d["Copper_diff"] = d["Copper_USD"].diff()
-    d.dropna(inplace=True)
-
-    feat_cols = ["Inflation", "USDZMW_diff", "Copper_diff"]
-    scaler = MinMaxScaler()
-    scaled = scaler.fit_transform(d[feat_cols])
-
-    tgt_scaler = MinMaxScaler()
-    tgt_scaled = tgt_scaler.fit_transform(d[["Inflation"]])
-
-    WINDOW = 3
-    def make_seq(data, target, w):
-        X, y = [], []
-        for i in range(w, len(data)):
-            X.append(data[i-w:i])
-            y.append(target[i])
-        return np.array(X), np.array(y)
-
-    X_all, y_all = make_seq(scaled, tgt_scaled, WINDOW)
-    dates = d.index[WINDOW:]
-    split = len(X_all) - 5
-    X_tr, X_te = X_all[:split], X_all[split:]
-    y_tr, y_te = y_all[:split], y_all[split:]
-
-    model = Sequential([
-        LSTM(64, return_sequences=True, input_shape=(WINDOW, X_tr.shape[2])),
-        Dropout(0.2),
-        LSTM(32, return_sequences=False),
-        Dropout(0.2),
-        Dense(16, activation="relu"),
-        Dense(1),
-    ])
-    model.compile(optimizer="adam", loss="mse")
-    es = EarlyStopping(monitor="val_loss", patience=20, restore_best_weights=True)
-    history = model.fit(X_tr, y_tr, epochs=200, batch_size=4,
-                        validation_split=0.2, callbacks=[es], verbose=0)
-
-    fc_sc = model.predict(X_te)
-    fc = tgt_scaler.inverse_transform(fc_sc).flatten()
-    actual = tgt_scaler.inverse_transform(y_te).flatten()
-    train_actual = tgt_scaler.inverse_transform(y_tr).flatten()
-
-    rmse = float(np.sqrt(mean_squared_error(actual, fc)))
-    mae  = float(mean_absolute_error(actual, fc))
-    mape = float(np.mean(np.abs((actual - fc) / actual)) * 100)
-
-    return dict(forecast=fc, actual=actual, train_actual=train_actual,
-                test_index=dates[split:], train_index=dates[:split],
-                history=history.history, rmse=rmse, mae=mae, mape=mape,
-                epochs=len(history.history["loss"]))
-
-
 @st.cache_data(show_spinner="🔭 Generating 3-year forward forecast…")
 def run_forward_forecast(_arimax_result, df):
-    exog = _arimax_result["exog"]
+    exog  = _arimax_result["exog"]
     model = _arimax_result["model"]
 
     future_exog = pd.DataFrame({
@@ -343,7 +247,7 @@ def run_forward_forecast(_arimax_result, df):
         "Copper_diff": [exog["Copper_diff"].tail(3).mean()] * 3,
     })
     fc, ci = model.predict(n_periods=3, exogenous=future_exog, return_conf_int=True)
-    years = pd.date_range("2025", periods=3, freq="YS")
+    years  = pd.date_range("2025", periods=3, freq="YS")
     return fc, ci, years
 
 
@@ -357,20 +261,20 @@ with st.sidebar:
 
     run_models = st.multiselect(
         "Models to run",
-        ["ARIMAX", "XGBoost", "Prophet", "LSTM"],
-        default=["ARIMAX", "XGBoost", "Prophet", "LSTM"],
+        ["ARIMAX", "XGBoost", "Prophet"],
+        default=["ARIMAX", "XGBoost", "Prophet"],
     )
 
     st.divider()
-    show_ci = st.toggle("Show confidence intervals", value=True)
+    show_ci      = st.toggle("Show confidence intervals",      value=True)
     show_history = st.toggle("Show training history on charts", value=True)
 
     st.divider()
     st.markdown("### 📚 Data Sources")
     st.markdown("""
-    - 🌍 **World Bank API** — Inflation & FX
-    - 📈 **Yahoo Finance** — Copper (HG=F)
-    """)
+- 🌍 **World Bank API** — Inflation & FX
+- 📈 **Yahoo Finance** — Copper (HG=F)
+""")
 
     st.divider()
     st.markdown("### 👤 Author")
@@ -379,8 +283,7 @@ with st.sidebar:
         '<span class="badge badge-blue">v2.0</span>'
         '<span class="badge badge-green">ARIMAX</span>'
         '<span class="badge badge-blue">XGBoost</span>'
-        '<span class="badge badge-purple">Prophet</span>'
-        '<span class="badge badge-orange">LSTM</span>',
+        '<span class="badge badge-purple">Prophet</span>',
         unsafe_allow_html=True,
     )
 
@@ -395,7 +298,7 @@ st.markdown("""
     📊 Zambia Inflation Forecasting
   </h1>
   <p style="color:#8892b0; font-size:1.05rem; max-width:660px; margin:0 auto;">
-    A hybrid framework combining <b>ARIMAX · XGBoost · Prophet · LSTM</b>
+    A hybrid framework combining <b>ARIMAX · XGBoost · Prophet</b>
     to forecast Zambia's inflation using macroeconomic drivers.
   </p>
 </div>
@@ -415,18 +318,18 @@ except Exception as e:
     st.info("Check your internet connection. The app requires access to the World Bank API and Yahoo Finance.")
     st.stop()
 
-# Quick top-row KPIs
-latest_infl  = df["Inflation"].iloc[-1]
-latest_year  = df.index[-1].year
-latest_fx    = df["USDZMW"].iloc[-1]
-latest_cu    = df["Copper_USD"].iloc[-1]
-yoy_infl     = df["Inflation"].iloc[-1] - df["Inflation"].iloc[-2]
-yoy_fx       = df["USDZMW"].iloc[-1] - df["USDZMW"].iloc[-2]
+# Top-row KPIs
+latest_infl = df["Inflation"].iloc[-1]
+latest_year = df.index[-1].year
+latest_fx   = df["USDZMW"].iloc[-1]
+latest_cu   = df["Copper_USD"].iloc[-1]
+yoy_infl    = df["Inflation"].iloc[-1] - df["Inflation"].iloc[-2]
+yoy_fx      = df["USDZMW"].iloc[-1]   - df["USDZMW"].iloc[-2]
 
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("📈 Latest Inflation", f"{latest_infl:.1f}%",  f"{yoy_infl:+.1f}pp YoY ({latest_year})")
 c2.metric("💱 USD/ZMW Rate",     f"{latest_fx:.2f}",      f"{yoy_fx:+.2f} YoY")
-c3.metric("🟤 Copper (USD/lb)",  f"${latest_cu:.2f}",    None)
+c3.metric("🟤 Copper (USD/lb)",  f"${latest_cu:.2f}",     None)
 c4.metric("📅 Dataset",          f"{len(df)} years",      f"{df.index.min().year}–{df.index.max().year}")
 
 st.markdown("<br>", unsafe_allow_html=True)
@@ -456,9 +359,9 @@ with tab_eda:
         subplot_titles=["Annual Inflation Rate (%)", "USD/ZMW Exchange Rate", "Copper Price (USD/lb)"],
     )
     traces = [
-        go.Scatter(x=df.index, y=df["Inflation"],  name="Inflation",  line=dict(color=COLORS["ARIMAX"],  width=2.5)),
-        go.Scatter(x=df.index, y=df["USDZMW"],     name="USD/ZMW",    line=dict(color=COLORS["XGBoost"], width=2.5)),
-        go.Scatter(x=df.index, y=df["Copper_USD"], name="Copper",     line=dict(color=COLORS["LSTM"],    width=2.5)),
+        go.Scatter(x=df.index, y=df["Inflation"],  name="Inflation", line=dict(color=COLORS["ARIMAX"],  width=2.5)),
+        go.Scatter(x=df.index, y=df["USDZMW"],     name="USD/ZMW",   line=dict(color=COLORS["XGBoost"], width=2.5)),
+        go.Scatter(x=df.index, y=df["Copper_USD"], name="Copper",    line=dict(color=COLORS["LSTM"],    width=2.5)),
     ]
     for i, tr in enumerate(traces, 1):
         fig.add_trace(tr, row=i, col=1)
@@ -503,9 +406,12 @@ with tab_eda:
         rows = []
         for col in ["Inflation", "USDZMW", "Copper_USD"]:
             r = adfuller(df[col].dropna())
-            rows.append({"Variable": col, "ADF Statistic": round(r[0], 4),
-                         "p-value": round(r[1], 4),
-                         "Stationary?": "✅ Yes" if r[1] <= 0.05 else "⚠️ No (d=1 needed)"})
+            rows.append({
+                "Variable": col,
+                "ADF Statistic": round(r[0], 4),
+                "p-value": round(r[1], 4),
+                "Stationary?": "✅ Yes" if r[1] <= 0.05 else "⚠️ No (d=1 needed)",
+            })
         st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
 
@@ -526,10 +432,10 @@ with tab_models:
                     ar = run_arimax(df)
                     results["ARIMAX"] = ar
                     m1, m2, m3, m4 = st.columns(4)
-                    m1.metric("Order",  str(ar["order"]))
-                    m2.metric("RMSE",   f"{ar['rmse']:.4f}")
-                    m3.metric("MAE",    f"{ar['mae']:.4f}")
-                    m4.metric("MAPE",   f"{ar['mape']:.2f}%")
+                    m1.metric("Order", str(ar["order"]))
+                    m2.metric("RMSE",  f"{ar['rmse']:.4f}")
+                    m3.metric("MAE",   f"{ar['mae']:.4f}")
+                    m4.metric("MAPE",  f"{ar['mape']:.2f}%")
 
                     fig = go.Figure()
                     if show_history:
@@ -639,118 +545,99 @@ with tab_models:
                 except Exception as e:
                     st.error(f"Prophet error: {e}")
 
-        # --- LSTM ---
-        if "LSTM" in run_models:
-            with st.expander("🧠 LSTM Model", expanded=True):
-                try:
-                    ls = run_lstm(df)
-                    results["LSTM"] = ls
-                    m1, m2, m3, m4 = st.columns(4)
-                    m1.metric("Epochs trained", ls["epochs"])
-                    m2.metric("RMSE", f"{ls['rmse']:.4f}")
-                    m3.metric("MAE",  f"{ls['mae']:.4f}")
-                    m4.metric("MAPE", f"{ls['mape']:.2f}%")
-
-                    col_f, col_l = st.columns(2)
-                    with col_f:
-                        fig = go.Figure()
-                        if show_history:
-                            fig.add_trace(go.Scatter(x=ls["train_index"], y=ls["train_actual"],
-                                name="Training", line=dict(color=COLORS["history"], width=2)))
-                        fig.add_trace(go.Scatter(x=ls["test_index"], y=ls["actual"],
-                            name="Actual", line=dict(color=COLORS["actual"], width=2.5),
-                            mode="lines+markers", marker=dict(size=8)))
-                        fig.add_trace(go.Scatter(x=ls["test_index"], y=ls["forecast"],
-                            name="LSTM", line=dict(color=COLORS["LSTM"], width=2.5, dash="dash"),
-                            mode="lines+markers", marker=dict(symbol="diamond", size=9)))
-                        fig.update_layout(**PLOTLY_LAYOUT, height=360,
-                                          title_text="LSTM — Zambia Inflation Forecast",
-                                          yaxis_title="Inflation (%)")
-                        st.plotly_chart(fig, use_container_width=True)
-
-                    with col_l:
-                        h = ls["history"]
-                        fig_l = go.Figure()
-                        fig_l.add_trace(go.Scatter(y=h["loss"], name="Train Loss",
-                            line=dict(color=COLORS["LSTM"], width=2)))
-                        fig_l.add_trace(go.Scatter(y=h["val_loss"], name="Val Loss",
-                            line=dict(color="#8892b0", width=2, dash="dash")))
-                        fig_l.update_layout(**PLOTLY_LAYOUT, height=360,
-                                            title_text="Training Loss Curve",
-                                            xaxis_title="Epoch", yaxis_title="MSE")
-                        st.plotly_chart(fig_l, use_container_width=True)
-                except Exception as e:
-                    st.error(f"LSTM error: {e}")
-
-        # Cache results for other tabs
-        st.session_state["results"] = results
-
 
 # ────────────────────────────────────────────────────────────────────────────
 # TAB 3 — BENCHMARKING
 # ────────────────────────────────────────────────────────────────────────────
 
 with tab_benchmark:
-    st.markdown("### Model Performance Leaderboard")
+    st.markdown("### Model Comparison Dashboard")
 
-    results = st.session_state.get("results", {})
-    if not results:
-        st.info("Run models in the **Model Forecasts** tab first.")
-    else:
+    # Run all models needed for benchmarking
+    bench_results = {}
+    model_colors  = [COLORS["ARIMAX"], COLORS["XGBoost"], COLORS["Prophet"]]
+
+    with st.spinner("Running all models for benchmarking…"):
+        try:
+            bench_results["ARIMAX"]  = run_arimax(df)
+        except Exception as e:
+            st.warning(f"ARIMAX skipped: {e}")
+        try:
+            bench_results["XGBoost"] = run_xgboost(df)
+        except Exception as e:
+            st.warning(f"XGBoost skipped: {e}")
+        try:
+            bench_results["Prophet"] = run_prophet(df)
+        except Exception as e:
+            st.warning(f"Prophet skipped: {e}")
+
+    if bench_results:
         rows = []
-        for name, r in results.items():
-            rows.append({"Model": name, "RMSE": round(r["rmse"], 4),
-                         "MAE": round(r["mae"], 4), "MAPE (%)": round(r["mape"], 2)})
+        for name, res in bench_results.items():
+            rows.append({"Model": name, "RMSE": res["rmse"], "MAE": res["mae"], "MAPE (%)": res["mape"]})
         bench_df = pd.DataFrame(rows).sort_values("RMSE").reset_index(drop=True)
-        medals = ["🥇", "🥈", "🥉"] + [""] * 10
-        bench_df.insert(0, "Rank", [f"{medals[i]} #{i+1}" for i in range(len(bench_df))])
+        medals   = ["🥇", "🥈", "🥉", "4th"]
+        bench_df.insert(0, "Rank", medals[:len(bench_df)])
 
-        st.dataframe(
-            bench_df.style
-                .background_gradient(subset=["RMSE", "MAE", "MAPE (%)"], cmap="YlOrRd_r")
-                .format({"RMSE": "{:.4f}", "MAE": "{:.4f}", "MAPE (%)": "{:.2f}%"}),
-            use_container_width=True, hide_index=True,
-        )
+        st.dataframe(bench_df.style.format({"RMSE": "{:.4f}", "MAE": "{:.4f}", "MAPE (%)": "{:.2f}"}),
+                     use_container_width=True, hide_index=True)
 
-        st.markdown("### Metric Comparison Charts")
+        # Bar charts
         fig_b = make_subplots(rows=1, cols=3,
-            subplot_titles=["RMSE ↓ Lower is better",
-                            "MAE ↓ Lower is better",
-                            "MAPE % ↓ Lower is better"])
-
-        model_colors = [COLORS.get(m, "#8892b0") for m in bench_df["Model"]]
-        for col, metric in enumerate(["RMSE", "MAE", "MAPE (%)"], 1):
+                              subplot_titles=["RMSE (lower = better)",
+                                              "MAE (lower = better)",
+                                              "MAPE % (lower = better)"])
+        for col_idx, metric in enumerate(["RMSE", "MAE", "MAPE (%)"], 1):
             fig_b.add_trace(
                 go.Bar(x=bench_df["Model"], y=bench_df[metric],
-                       marker=dict(color=model_colors, opacity=0.85),
-                       text=[f"{v:.2f}" for v in bench_df[metric]],
-                       textposition="outside", name=metric, showlegend=False),
-                row=1, col=col,
+                       marker_color=[COLORS["ARIMAX"], COLORS["XGBoost"], COLORS["Prophet"]][:len(bench_df)],
+                       text=bench_df[metric].round(2), textposition="outside",
+                       showlegend=False),
+                row=1, col=col_idx,
             )
-        fig_b.update_layout(**PLOTLY_LAYOUT, height=400)
+        fig_b.update_layout(**PLOTLY_LAYOUT, height=380,
+                            title_text="Model Benchmarking — All Metrics")
         st.plotly_chart(fig_b, use_container_width=True)
 
+        # Overlay plot
         st.markdown("### All Models vs Actual")
         fig_ov = go.Figure()
-        first = next(iter(results.values()))
-        if show_history:
-            fig_ov.add_trace(go.Scatter(
-                x=first["train_index"], y=first["train_actual"],
-                name="Historical", line=dict(color=COLORS["history"], width=2.5)))
+        test_index = list(bench_results.values())[0]["test_index"]
+        actual     = list(bench_results.values())[0]["actual"]
+
         fig_ov.add_trace(go.Scatter(
-            x=first["test_index"], y=first["actual"],
-            name="Actual", line=dict(color=COLORS["actual"], width=3),
+            x=df.index[:-5], y=df["Inflation"].values[:-5],
+            name="Historical", line=dict(color=COLORS["history"], width=2.5)))
+        fig_ov.add_trace(go.Scatter(
+            x=test_index, y=actual,
+            name="Actual", line=dict(color=COLORS["actual"], width=2.5),
             mode="lines+markers", marker=dict(size=9)))
-        for name, r in results.items():
+
+        styles = ["dash", "dashdot", "dot"]
+        symbols = ["x", "triangle-up", "square"]
+        for i, (name, res) in enumerate(bench_results.items()):
             fig_ov.add_trace(go.Scatter(
-                x=r["test_index"], y=r["forecast"],
-                name=f"{name} (MAPE={r['mape']:.1f}%)",
-                line=dict(color=COLORS.get(name, "#fff"), width=2, dash="dash"),
-                mode="lines+markers", marker=dict(size=7)))
-        fig_ov.update_layout(**PLOTLY_LAYOUT, height=460,
+                x=res["test_index"], y=res["forecast"],
+                name=f"{name} (MAPE={res['mape']:.1f}%)",
+                line=dict(color=model_colors[i], width=2, dash=styles[i]),
+                mode="lines+markers", marker=dict(symbol=symbols[i], size=9)))
+
+        fig_ov.update_layout(**PLOTLY_LAYOUT, height=420,
                              title_text="All Models vs Actual — Zambia Inflation",
                              yaxis_title="Inflation (%)")
         st.plotly_chart(fig_ov, use_container_width=True)
+
+        # Key insights
+        st.markdown("### 💡 Key Analytical Takeaways")
+        st.info("""
+**1. ARIMAX** — Combining ARIMA's time-series strengths with macroeconomic drivers (exchange rate + copper prices) typically produces the lowest error across all metrics.
+
+**2. Prophet** — With a small dataset (~19 training points), Prophet has insufficient data to detect meaningful changepoints, often extrapolating a downward trend that contradicts the post-2020 inflation surge.
+
+**3. XGBoost** — Feature importance reveals that Lag_2 and Rolling_Mean_3 are the strongest inflation predictors, with USD/ZMW and Copper prices adding meaningful but secondary signal.
+
+**4. Copper prices matter** — The strong negative correlation with inflation confirms Zambia's economic sensitivity to copper export revenues, consistent with its status as one of the world's largest copper producers.
+        """)
 
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -761,86 +648,56 @@ with tab_forecast:
     st.markdown("### 🔭 3-Year Forward Forecast (2025–2027)")
     st.markdown("Using **ARIMAX** — the best-performing model — retrained on the full dataset.")
 
-    results = st.session_state.get("results", {})
-    if "ARIMAX" not in results:
-        st.warning("Please run the **ARIMAX model** in the Model Forecasts tab first.")
-    else:
-        try:
-            ar = results["ARIMAX"]
-            fc, ci, years = run_forward_forecast(ar, df)
+    try:
+        ar_full = run_arimax(df)
+        fc, ci, years = run_forward_forecast(ar_full, df)
 
-            # KPI row
-            c1, c2, c3 = st.columns(3)
-            for col, (yr, f, bounds) in zip([c1, c2, c3], zip(years.year, fc, ci)):
-                col.metric(f"📅 {yr}", f"{f:.2f}%",
-                           f"CI: {bounds[0]:.1f}% – {bounds[1]:.1f}%")
+        # Forecast table
+        fcast_df = pd.DataFrame({
+            "Year":        [y.year for y in years],
+            "Forecast (%)": np.round(fc, 2),
+            "Lower 95% CI": np.round(ci[:, 0], 2),
+            "Upper 95% CI": np.round(ci[:, 1], 2),
+        })
+        st.dataframe(fcast_df, use_container_width=True, hide_index=True)
 
-            # Plot
-            fig_ff = go.Figure()
-            fig_ff.add_trace(go.Scatter(
-                x=df.index, y=df["Inflation"],
-                name="Historical", line=dict(color=COLORS["history"], width=2.5),
-                mode="lines+markers", marker=dict(size=5)))
-            fig_ff.add_trace(go.Scatter(
-                x=years, y=fc,
-                name="Forecast 2025–2027",
-                line=dict(color=COLORS["ARIMAX"], width=3, dash="dash"),
-                mode="lines+markers+text",
-                marker=dict(symbol="diamond", size=12),
-                text=[f"{v:.1f}%" for v in fc], textposition="top center",
-                textfont=dict(color=COLORS["ARIMAX"], size=13)))
-            if show_ci:
-                fig_ff.add_trace(go.Scatter(
-                    x=list(years) + list(years)[::-1],
-                    y=list(ci[:, 0]) + list(ci[:, 1])[::-1],
-                    fill="toself", fillcolor="rgba(100,255,218,0.08)",
-                    line=dict(color="rgba(0,0,0,0)"), name="95% CI"))
-            # Vertical line at forecast start
-            fig_ff.add_vline(x="2025-01-01", line_dash="dot",
-                             line_color="rgba(100,255,218,0.3)",
-                             annotation_text="Forecast →",
-                             annotation_font_color="#64ffda")
-            fig_ff.update_layout(**PLOTLY_LAYOUT, height=480,
-                                 title_text="Zambia Inflation — ARIMAX 3-Year Forward Forecast",
-                                 yaxis_title="Inflation (%)")
-            st.plotly_chart(fig_ff, use_container_width=True)
+        # Plot
+        fig_ff = go.Figure()
+        fig_ff.add_trace(go.Scatter(
+            x=df.index, y=df["Inflation"],
+            name="Historical", line=dict(color=COLORS["history"], width=2.5),
+            mode="lines+markers", marker=dict(size=5)))
+        fig_ff.add_trace(go.Scatter(
+            x=years, y=fc,
+            name="ARIMAX Forecast 2025–2027",
+            line=dict(color=COLORS["ARIMAX"], width=2.5, dash="dash"),
+            mode="lines+markers", marker=dict(symbol="diamond", size=11)))
+        fig_ff.add_trace(go.Scatter(
+            x=list(years) + list(years)[::-1],
+            y=list(ci[:, 0]) + list(ci[:, 1])[::-1],
+            fill="toself", fillcolor="rgba(100,255,218,0.1)",
+            line=dict(color="rgba(0,0,0,0)"), name="95% CI"))
 
-            # Table
-            st.markdown("#### Forecast Table")
-            fwd_df = pd.DataFrame({
-                "Year": years.year,
-                "Forecast (%)": [f"{v:.2f}" for v in fc],
-                "Lower CI (%)": [f"{v:.2f}" for v in ci[:, 0]],
-                "Upper CI (%)": [f"{v:.2f}" for v in ci[:, 1]],
-            })
-            st.dataframe(fwd_df, use_container_width=True, hide_index=True)
+        # Annotations
+        for yr, val in zip(years, fc):
+            fig_ff.add_annotation(x=yr, y=val, text=f"  {val:.1f}%",
+                                  showarrow=False, font=dict(color=COLORS["ARIMAX"], size=12))
 
-        except Exception as e:
-            st.error(f"Forward forecast error: {e}")
+        fig_ff.update_layout(**PLOTLY_LAYOUT, height=460,
+                             title_text="Zambia Inflation — ARIMAX 3-Year Forward Forecast (2025–2027)",
+                             yaxis_title="Inflation (%)")
+        st.plotly_chart(fig_ff, use_container_width=True)
 
-    st.divider()
-    st.markdown("""
-    ### 📋 Key Analytical Takeaways
+        st.markdown("#### Methodology")
+        st.info("""
+- **Model:** ARIMAX retrained on the full available dataset
+- **Exogenous projections:** 3-year rolling mean of differenced USD/ZMW and Copper prices used as forward inputs
+- **Confidence intervals:** 95% prediction intervals from ARIMAX
+- **Caveat:** Forecasts assume macroeconomic conditions remain broadly stable. Structural shocks (e.g. commodity price collapse, currency crisis) would materially alter these projections.
+        """)
 
-    | # | Finding |
-    |---|---------|
-    | 1 | **ARIMAX won** — combining ARIMA with exchange rate & copper prices produced the lowest error |
-    | 2 | **Prophet underperformed** — only ~19 training points were insufficient for changepoint detection |
-    | 3 | **LSTM showed promise** — ranked 2nd on MAPE despite the small dataset |
-    | 4 | **XGBoost feature importance** — Lag_2 and Rolling_Mean_3 are the strongest predictors |
-    | 5 | **Copper prices matter** — the −0.66 correlation confirms Zambia's commodity-driven economy |
-    """)
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# FOOTER
-# ══════════════════════════════════════════════════════════════════════════════
-
-st.divider()
-st.markdown("""
-<div style="text-align:center; color:#4a5568; font-size:0.82rem; padding:8px 0 16px 0;">
-  Built with ❤️ by <b>Given Chinyama</b> &nbsp;·&nbsp;
-  Data: World Bank Open Data · Yahoo Finance &nbsp;·&nbsp;
-  Models: ARIMAX · XGBoost · Prophet · LSTM
-</div>
-""", unsafe_allow_html=True)
+    except Exception as e:
+        st.error(f"Forward forecast error: {e}")
+        st.info("Ensure ARIMAX ran successfully in the Model Forecasts tab.")
+       
+                
