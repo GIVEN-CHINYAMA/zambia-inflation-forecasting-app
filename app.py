@@ -116,11 +116,35 @@ def load_data():
     )
     fx = fx.set_index("Year").sort_index()
 
-    # --- Copper ---
-    copper = yf.download("HG=F", start="1990-01-01", interval="1mo", auto_adjust=True)["Close"]
-    copper = copper.resample("YE").mean()
-    copper.index = copper.index.to_period("Y").to_timestamp()
-    copper.name = "Copper_USD"
+    # --- Copper (with fallback if Yahoo Finance rate-limits) ---
+    copper = None
+    try:
+        raw = yf.download("HG=F", start="1990-01-01", interval="1mo", auto_adjust=True)
+        if raw is not None and not raw.empty:
+            c = raw["Close"].resample("YE").mean()
+            c.index = c.index.to_period("Y").to_timestamp()
+            c.name = "Copper_USD"
+            if len(c) > 5:
+                copper = c
+    except Exception:
+        pass
+
+    # Fallback: historical annual copper prices (USD/lb) if Yahoo Finance fails
+    if copper is None or copper.empty:
+        fallback = {
+            1990: 1.22, 1991: 1.06, 1992: 1.04, 1993: 0.87, 1994: 1.05,
+            1995: 1.33, 1996: 1.04, 1997: 1.03, 1998: 0.75, 1999: 0.71,
+            2000: 0.82, 2001: 0.72, 2002: 0.71, 2003: 0.81, 2004: 1.30,
+            2005: 1.67, 2006: 3.05, 2007: 3.23, 2008: 3.15, 2009: 2.34,
+            2010: 3.42, 2011: 4.00, 2012: 3.61, 2013: 3.32, 2014: 3.11,
+            2015: 2.49, 2016: 2.20, 2017: 2.80, 2018: 2.96, 2019: 2.72,
+            2020: 2.80, 2021: 4.23, 2022: 3.99, 2023: 3.85, 2024: 4.15,
+        }
+        copper = pd.Series(
+            fallback,
+            index=pd.to_datetime([str(y) for y in fallback.keys()], format="%Y"),
+            name="Copper_USD",
+        )
 
     df = infl.join(fx, how="inner").join(copper, how="inner")
     df.dropna(inplace=True)
@@ -128,6 +152,11 @@ def load_data():
 
     if df.empty:
         raise ValueError("Dataset is empty after merging. World Bank API may be unavailable.")
+
+    # Ensure correct column names
+    df.columns = [str(c) for c in df.columns]
+    if "Copper_USD" not in df.columns:
+        raise ValueError(f"Copper_USD column missing. Columns found: {list(df.columns)}")
 
     return df
 
@@ -699,5 +728,3 @@ with tab_forecast:
     except Exception as e:
         st.error(f"Forward forecast error: {e}")
         st.info("Ensure ARIMAX ran successfully in the Model Forecasts tab.")
-       
-                
