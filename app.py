@@ -153,10 +153,14 @@ def load_data():
     if df.empty:
         raise ValueError("Dataset is empty after merging. World Bank API may be unavailable.")
 
-    # Ensure correct column names
+    # Ensure correct column names — Yahoo Finance may return ticker name (HG=F)
     df.columns = [str(c) for c in df.columns]
-    if "Copper_USD" not in df.columns:
-        raise ValueError(f"Copper_USD column missing. Columns found: {list(df.columns)}")
+    rename_map = {}
+    for col in df.columns:
+        if col not in ["Inflation", "USDZMW", "Copper_USD"]:
+            rename_map[col] = "Copper_USD"
+    if rename_map:
+        df.rename(columns=rename_map, inplace=True)
 
     return df
 
