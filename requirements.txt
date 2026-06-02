@@ -10,3 +10,4 @@ prophet
 xgboost
 scikit-learn
 statsmodels
+plotly
