@@ -1,6 +1,4 @@
-st.caption("📌 Note: Exchange rate reflects the latest 
-World Bank annual average, not today's live rate. 
-World Bank data updates once per year.")
+st.info("Data Source Notice: This app uses World Bank API annual data for macroeconomic modeling. Exchange rate and inflation figures reflect annual averages, not real-time values.")
 
 
 """
