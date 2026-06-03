@@ -1,3 +1,8 @@
+st.caption("📌 Note: Exchange rate reflects the latest 
+World Bank annual average, not today's live rate. 
+World Bank data updates once per year.")
+
+
 """
 Zambia Inflation Forecasting — Streamlit App
 Author: Given Chinyama
