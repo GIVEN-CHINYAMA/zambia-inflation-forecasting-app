@@ -1,6 +1,3 @@
-st.info("Data Source Notice: This app uses World Bank API annual data for macroeconomic modeling. Exchange rate and inflation figures reflect annual averages, not real-time values.")
-
-
 """
 Zambia Inflation Forecasting — Streamlit App
 Author: Given Chinyama
